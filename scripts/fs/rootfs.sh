@@ -115,6 +115,9 @@ case ${ARCH_MAGIC} in
 		LDSO_TARGET=$(readlink ${CROSS_PATH}/sysroot/lib/${LDSO_NAME})
 		RISCV_LIB_INSTALL=Y
 	;;
+	6)
+		ARCH_NAME=x86_64
+	;;
 	*)
 		ARCH_NAME=unknown
 	;;
@@ -132,6 +135,8 @@ esac
 # --> Mount / at RAMDISK
 [ ${KERNEL_MAJOR_NO} -lt 4 ] && SUPPORT_RAMDISK=Y
 [ ${ARCH_NAME} == "arm64" ]  && SUPPORT_RAMDISK=N
+[ ${ARCH_NAME} == "x86" ] && SUPPORT_RAMDISK=Y
+[ ${ARCH_NAME} == "x86_64" ] && SUPPORT_RAMDISK=Y
 
 # RaspberryPi 4B
 [ ${PROJECT_NAME} = "RaspberryPi_4B" ] && SUPPORT_RPI4B=Y
@@ -154,7 +159,7 @@ fi
 # Prepare Direct on Rootfs
 rm -rf ${OUTPUT}/rootfs/
 mkdir -p ${ROOTFS_PATH}
-cp ${BUSYBOX}/_install/*  ${ROOTFS_PATH} -raf 
+[ -d ${BUSYBOX}/_install/ ] && cp ${BUSYBOX}/_install/*  ${ROOTFS_PATH} -raf 
 mkdir -p ${ROOTFS_PATH}/proc/
 mkdir -p ${ROOTFS_PATH}/sys/
 mkdir -p ${ROOTFS_PATH}/tmp/
@@ -175,12 +180,14 @@ mkdir -p /tmp
 mkdir -p /sys
 mkdir -p /mnt
 mkdir -p /nfs
-mkdir -p /bsvfs
 /bin/mount -a
 /bin/hostname BiscuitOS
 
 # Netwroking
 ifconfig eth0 up > /dev/null 2>&1
+ifconfig eth0 172.88.1.6
+route add default gw 172.88.1.1
+# mount -t nfs 172.88.1.2:/xspace/OpenSource/BiscuitOS/BiscuitOS /nfs -o nolock
 # Setup default gw
 # -> route add default gw gatway_ipaddr
 
@@ -202,6 +209,7 @@ echo "| |_) | \__ \ (__| |_| | | |_| |_| |___) |"
 echo "|____/|_|___/\___|\__,_|_|\__|\___/|____/ "
 
 echo "Welcome to BiscuitOS"
+
 EOF
 chmod 755 ${RC}
 
@@ -212,7 +220,6 @@ cat << EOF > ${RC}
 proc /proc proc defaults 0 0
 tmpfs /tmp tmpfs defaults 0 0
 sysfs /sys sysfs defaults 0 0
-bsvfs /bsvfs bsvfs defaults 0 0
 tmpfs /dev tmpfs defaults 0 0
 debugfs /sys/kernel/debug debugfs defaults 0 0
 EOF
@@ -284,6 +291,9 @@ else
 			cp -arf ${LIBS_PATH_IN}/${CROSS_COMPILE}/* \
 				${ROOTFS_PATH}/lib/
 		else
+			# X86/i386
+			[ ${ARCH_NAME}Y = "x86Y" ] && LIBS_PATH_IN=/lib/i386-linux-gnu
+			[ ${ARCH_NAME}Y = "x86_64Y" ] && LIBS_PATH_IN=/lib/x86_64-linux-gnu
 			cp -arf ${LIBS_PATH_IN}/* ${ROOTFS_PATH}/lib/
 		fi
 	fi
@@ -307,7 +317,11 @@ sudo umount ${OUTPUT}/rootfs/tmpfs
 if [ ${SUPPORT_RAMDISK} = "Y" ]; then
 	# Support RAMdisk
 	gzip --best -c ${OUTPUT}/rootfs/ramdisk > ${OUTPUT}/rootfs/ramdisk.gz
-	mkimage -n "ramdisk" -A arm -O linux -T ramdisk -C gzip -d ${OUTPUT}/rootfs/ramdisk.gz ${OUTPUT}/BiscuitOS.img
+	if [ ${ARCH_NAME} = "x86" -o ${ARCH_NAME} = "x86_64" ]; then
+		mv ${OUTPUT}/rootfs/ramdisk.gz ${OUTPUT}/BiscuitOS.img
+	else
+		mkimage -n "ramdisk" -A arm -O linux -T ramdisk -C gzip -d ${OUTPUT}/rootfs/ramdisk.gz ${OUTPUT}/BiscuitOS.img
+	fi
 	rm -rf ${OUTPUT}/rootfs/ramdisk
 else
 	# Support HardDisk
@@ -331,7 +345,8 @@ fi
 ## Auto build README.md
 ${ROOT}/scripts/rootfs/readme.sh $1 $2 $3 $4 $5 $6 $7 $8 $9 ${10} ${11} \
 					${12} ${13} ${14} ${15} ${16} \
-					${FREEZE_DISK}X ${DISK_SIZE}X
+					${FREEZE_SIZE}X ${DISK_SIZE}X \
+					${19} ${20}
 
 ## Output directory
 echo ""

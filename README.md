@@ -21,27 +21,36 @@ BiscuitOS without hardware. So, don't stop, play Linux with BiscuitOS.
 
 ## To Prepare
 
-Before your tour, you need install essential toolchain on host PC (
-such as `Ubuntu16.04`). Execute command:
+BiscuitOS support build on host or Docker, if you want build on docker,
+such as:
+
+```
+wget https://raw.githubusercontent.com/BiscuitOS/BiscuitOS/Stable_long/scripts/Docker/build.sh
+./build.sh
+```
+
+If you want not use Docker, Before your tour, you need install 
+essential toolchain on host PC (such as `Ubuntu16.04`). Execute command:
 
 ```
 sudo apt-get install -y qemu gcc make gdb git figlet
-sudo apt-get install -y libncurses5-dev iasl
+sudo apt-get install -y libncurses5-dev iasl wget
 sudo apt-get install -y device-tree-compiler
 sudo apt-get install -y flex bison libssl-dev libglib2.0-dev
 sudo apt-get install -y libfdt-dev libpixman-1-dev
 sudo apt-get install -y python pkg-config u-boot-tools intltool xsltproc
-sudo apt-get install -y gpref libglib2.0-dev libgirepository1.0-dev
+sudo apt-get install -y gperf libglib2.0-dev libgirepository1.0-dev
 sudo apt-get install -y gobject-introspection
 sudo apt-get install -y python2.7-dev python-dev bridge-utils
 sudo apt-get install -y uml-utilities net-tools
 sudo apt-get install -y libattr1-dev libcap-dev
 sudo apt-get install -y kpartx libsdl2-dev libsdl1.2-dev
 sudo apt-get install -y debootstrap bsdtar
+sudo apt-get install -y libelf-dev
 
 On 64-Bit Machine:
 
-sudo apt-get install lib32z1 lib32z1-dev
+sudo apt-get install lib32z1 lib32z1-dev libc6:i386
 ```
   
 **NOTE!**

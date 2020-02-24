@@ -3,7 +3,7 @@
 # BiscuitOS-Desktop filesystem
 #
 ################################################
-BISCUITOS_NAME       := BiscuitOS-Desktop
+BISCUITOS_NAME       := BiscuitOS
 BISCUITOS_VERSION    := $(CONFIG_BISCUITOS_VERSION)
 BISCUITOS_SITE       := $(CONFIG_BISCUITOS_WGET_SITE)
 BISCUITOS_GITHUB     := $(BISCUITOS_GITHUB_SITE)
@@ -14,6 +14,7 @@ BISCUITOS_OUT        :=
 BISCUITOS_SCRIPTS    := $(srctree)/scripts/fs/Desktop.sh
 BISCUITOS_TAR        := $(CONFIG_BISCUITOS_TAR_TYPE)
 BISCUITOS_PACKAGE    := 
+BISCUITOS_RUN_ONLY   := N
 SUB_TARGET      += $(BISCUITOS_DIR)/build
 
 BISCUITOS_sh = $(CONFIG_SHELL) $(BISCUITOS_SCRIPTS) \
@@ -26,7 +27,8 @@ BISCUITOS_sh = $(CONFIG_SHELL) $(BISCUITOS_SCRIPTS) \
                $(CONFIG_LINUX_BUILD_HIST)X $(CONFIG_UBOOT)X \
                $(CONFIG_UBOOT_CROSS_COMPILE)X \
                $(CONFIG_ROOTFS_SIZE)X \
-               $(CONFIG_FREEZE_SIZE)X
+               $(CONFIG_FREEZE_SIZE)X $(BISCUITOS_RUN_ONLY)X \
+               DesktopX
 
 $(BISCUITOS_DIR)/build: FORCE
 	$(Q)$(call BISCUITOS_sh,$(srctree))

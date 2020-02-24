@@ -27,7 +27,7 @@ UBOOT=${15%X}
 UBOOT_CROSS=${16%X}
 # Kernel Version
 KERNEL_VERSION=${7%X}
-[ ${KERNEL_VERSION} = "newest" ] && KERNEL_VERSION=6.0.0
+[ ${KERNEL_VERSION}X = "newestX" ] && KERNEL_VERSION=6.0.0
 # Rootfs NAME
 ROOTFS_NAME=${2%X}
 # Rootfs Version
@@ -35,7 +35,7 @@ ROOTFS_VERSION=${3%X}
 # Rootfs Path
 ROOTFS_PATH=${OUTPUT}/rootfs/${ROOTFS_NAME}
 # Disk size (MB)
-DISK_SIZE=${17%X}
+DISK_SIZE=${18%X}
 [ ! ${DISK_SIZE} ] && DISK_SIZE=512
 # Freeze Information
 FREEZE_NAME=${17%X}
@@ -47,6 +47,13 @@ KCROSS_PATH=${OUTPUT}/${CROSS_COMPILE}/${CROSS_COMPILE}
 QEMU_PATH=${OUTPUT}/qemu-system/qemu-system
 # Module Install Path
 MODULE_INSTALL_PATH=${OUTPUT}/rootfs/rootfs/
+# Running Only
+ONLYRUN=${19%X}
+SUPPORT_ONLYRUN=N
+# Rootfs type
+ROOTFS_TYPE=${20%X}
+
+[ ${ONLYRUN}X = "YX" ] && SUPPORT_ONLYRUN=Y && KERNEL_VERSION=6.0.0
 
 # Don't edit
 README_NAME=README.md
@@ -65,6 +72,12 @@ SUPPORT_RPI=N
 SUPPORT_RPI4B=N
 SUPPORT_RPI3B=N
 SUPPORT_DESKTOP=N
+SUPPORT_DEBIAN=N
+SUPPORT_DOCKER=N
+SUPPORT_SERVER=N
+SUPPORT_FREEZE_DISK=Y
+SUPPORT_BUSYBOX=Y
+SUPPORT_NETWORK=Y
 
 # Kernel Version field
 KERNEL_MAJOR_NO=
@@ -72,6 +85,8 @@ KERNEL_MINOR_NO=
 KERNEL_MINIR_NO=
 
 DEFAULT_CONFIG=defconfig
+# Debian Package
+DEBIAN_PACKAGE=
 
 ##
 ## Architecture information
@@ -85,17 +100,19 @@ case ${ARCH} in
 	;;
 	1)
 	ARCH_NAME=x86
-	QEMU=${QEMU_PATH}/x86_64-softmmu/qemu-system-x86_64
+	QEMU=${QEMU_PATH}/i386-softmmu/qemu-system-i386
 	;;
 	2)
 	ARCH_NAME=arm
 	QEMU=${QEMU_PATH}/arm-softmmu/qemu-system-arm
 	DEFAULT_CONFIG=vexpress_defconfig
+	DEBIAN_PACKAGE=buster-base-armel.tar.gz.${ROOTFS_TYPE}.bsp
 	;;
 	3)
 	ARCH_NAME=arm64
 	QEMU=${QEMU_PATH}/aarch64-softmmu/qemu-system-aarch64
 	DEFAULT_CONFIG=defconfig
+	DEBIAN_PACKAGE=buster-base-arm64.tar.gz.${ROOTFS_TYPE}.bsp
 	;;
 	4)
 	ARCH_NAME=riscv32
@@ -106,6 +123,10 @@ case ${ARCH} in
 	ARCH_NAME=riscv64
 	QEMU=${QEMU_PATH}/riscv64-softmmu/qemu-system-riscv64
 	DEFAULT_CONFIG=BiscuitOS_riscv64_defconfig
+	;;
+	6)
+	ARCH_NAME=x86_64
+	QEMU=${QEMU_PATH}/x86_64-softmmu/qemu-system-x86_64
 	;;
 esac
 
@@ -134,8 +155,10 @@ detect_kernel_version_field
 
 # Support RAMDISK (2.x/3.x Support)
 # --> Mount / at RAMDISK
-[ ${KERNEL_MAJOR_NO} -lt 4 ] && SUPPORT_RAMDISK=Y
+[ ${KERNEL_MAJOR_NO} -lt 4 ] && SUPPORT_RAMDISK=Y && SUPPORT_FREEZE_DISK=N
 [ ${ARCH_NAME} == "arm64" ] && SUPPORT_RAMDISK=N
+[ ${ARCH_NAME} == "x86" ] && SUPPORT_RAMDISK=Y && SUPPORT_FREEZE_DISK=N
+[ ${ARCH_NAME} == "x86_64" ] && SUPPORT_RAMDISK=Y && SUPPORT_FREEZE_DISK=N
 
 # Support Disk mount /
 # --> Mount / at /dev/vda
@@ -171,8 +194,11 @@ detect_kernel_version_field
 [ ${PROJECT_NAME} = "RaspberryPi_3B" ] && SUPPORT_RPI3B=Y && DEFAULT_CONFIG=bcm2709_defconfig
 [ ${SUPPORT_RPI4B} = "Y" -o ${SUPPORT_RPI3B} = "Y" ] && SUPPORT_RPI=Y && SUPPORT_RAMDISK=N
 
-# Desktop
-[ ${PROJECT_NAME} = "BiscuitOS-Desktop" ] && SUPPORT_DESKTOP=Y
+# Debian/Desktop/Docker
+[ ${ROOTFS_TYPE} = "Desktop" ] && SUPPORT_DESKTOP=Y && SUPPORT_DEBIAN=Y && SUPPORT_BUSYBOX=N
+[ ${ROOTFS_TYPE} = "Docker" ]  && SUPPORT_DOCKER=Y && SUPPORT_DEBIAN=Y && SUPPORT_BUSYBOX=N
+[ ${ROOTFS_TYPE} = "Server" ]  && SUPPORT_SERVER=Y && SUPPORT_DEBIAN=Y && SUPPORT_BUSYBOX=N
+[ ${SUPPORT_ONLYRUN} = "Y" ] && SUPPORT_DESKTOP=Y && SUPPORT_DEBIAN=Y && SUPPORT_BUSYBOX=N
 
 ##
 # Rootfs Inforamtion
@@ -238,13 +264,16 @@ ROOTFS_NAME=${ROOTFS_NAME}
 CROSS_COMPILE=${CROSS_COMPILE}
 FS_TYPE=${FS_TYPE}
 FS_TYPE_TOOLS=${FS_TYPE_TOOLS}
-ROOTFS_SIZE=${17%X}
-FREEZE_SIZE=${18%X}
+ROOTFS_SIZE=${18%X}
+FREEZE_SIZE=${17%X}
 DL=${ROOT}/dl
+DEBIAN_PACKAGE=${DEBIAN_PACKAGE}
 EOF
 # RAM size
 [ ${SUPPORT_2_X} = "Y" ] && echo 'RAM_SIZE=256' >> ${MF} 
 [ ${SUPPORT_2_X} = "N" ] && echo 'RAM_SIZE=512' >> ${MF}
+[ ${SUPPORT_ONLYRUN} = "Y" ] && echo 'RAM_SIZE=1024' >> ${MF}
+[ ${SUPPORT_DEBIAN} = "Y" ] && echo 'RAM_SIZE=1024' >> ${MF}
 # Platform
 [ ${SUPPORT_2_X} = "Y" -a ${ARCH_NAME} == "arm" ] && echo 'MACH=versatilepb' >> ${MF} 
 [ ${SUPPORT_2_X} = "N" -a ${ARCH_NAME} == "arm" ] && echo 'MACH=vexpress-a9' >> ${MF}
@@ -252,7 +281,7 @@ echo 'LINUX_DIR=${ROOT}/linux/linux/arch' >> ${MF}
 echo 'NET_CFG=${ROOT}/package/networking' >> ${MF}
 case ${ARCH_NAME} in
 	arm)
-		if [ ${SUPPORT_DESKTOP} = "N" ]; then
+		if [ ${SUPPORT_DEBIAN} = "N" ]; then
 			[ ${SUPPORT_RAMDISK} = "Y" ] && echo 'CMDLINE="earlycon root=/dev/ram0 rw rootfstype=${FS_TYPE} console=ttyAMA0 init=/linuxrc loglevel=8"' >> ${MF}
 			[ ${SUPPORT_RAMDISK} = "N" ] && echo 'CMDLINE="earlycon root=/dev/vda rw rootfstype=${FS_TYPE} console=ttyAMA0 init=/linuxrc loglevel=8"' >> ${MF}
 		else
@@ -260,14 +289,25 @@ case ${ARCH_NAME} in
 		fi
 	;;
 	arm64)
-		[ ${SUPPORT_RAMDISK} = "Y" ] && echo 'CMDLINE="earlycon root=/dev/ram0 rw rootfstype=${FS_TYPE} console=ttyAMA0 init=/linuxrc loglevel=8"' >> ${MF}
-		[ ${SUPPORT_RAMDISK} = "N" ] && echo 'CMDLINE="earlycon root=/dev/vda rw rootfstype=${FS_TYPE} console=ttyAMA0 init=/linuxrc loglevel=8"' >> ${MF}
+		if [ ${SUPPORT_DEBIAN} = "N" ]; then
+			[ ${SUPPORT_RAMDISK} = "Y" ] && echo 'CMDLINE="earlycon root=/dev/ram0 rw rootfstype=${FS_TYPE} console=ttyAMA0 init=/linuxrc loglevel=8"' >> ${MF}
+			[ ${SUPPORT_RAMDISK} = "N" ] && echo 'CMDLINE="earlycon root=/dev/vda rw rootfstype=${FS_TYPE} console=ttyAMA0 init=/linuxrc loglevel=8"' >> ${MF}
+		else
+			echo 'CMDLINE="earlycon root=/dev/vda rw rootfstype=${FS_TYPE} console=ttyAMA0 init=/sbin/init loglevel=8"' >> ${MF}
+
+		fi
 	;;
 	riscv32)
 		echo 'CMDLINE="root=/dev/vda rw console=ttyS0 init=/linuxrc loglevel=8"' >> ${MF}
 	;;
 	riscv64)
 		echo 'CMDLINE="root=/dev/vda rw console=ttyS0 init=/linuxrc loglevel=8"' >> ${MF}
+	;;
+	x86)
+		echo 'CMDLINE="root=/dev/ram0 rw rootfstype=${FS_TYPE} console=ttyS0 init=/linuxrc loglevel=8"' >> ${MF}
+	;;
+	x86_64)
+		echo 'CMDLINE="root=/dev/ram0 rw rootfstype=${FS_TYPE} console=ttyS0 init=/linuxrc loglevel=8"' >> ${MF}
 	;;
 esac
 
@@ -377,19 +417,21 @@ echo -e '\t' >> ${MF}
 echo '' >> ${MF}
 case ${ARCH_NAME} in
 	arm) 
+		[ ${SUPPORT_ONLYRUN} = "N" ] && echo -e '\t${ROOT}/package/gdb/gdb.pl ${ROOT} ${CROSS_COMPILE}' >> ${MF}
 		echo -e '\tsudo ${QEMUT} ${ARGS} \' >> ${MF}
 		echo -e '\t-M ${MACH} \' >> ${MF}
 		echo -e '\t-m ${RAM_SIZE}M \' >> ${MF}
-		echo -e '\t-kernel ${LINUX_DIR}/${ARCH}/boot/zImage \' >> ${MF}
+		[ ${SUPPORT_ONLYRUN} = "N" ] && echo -e '\t-kernel ${LINUX_DIR}/${ARCH}/boot/zImage \' >> ${MF}
+		[ ${SUPPORT_ONLYRUN} = "Y" ] && echo -e '\t-kernel ${ROOT}/images/zImage \' >> ${MF}
 		# Support DTB/DTS/FDT
-		[ ${SUPPORT_DTB} = "Y" ] && echo -e '\t-dtb ${LINUX_DIR}/${ARCH}/boot/dts/vexpress-v2p-ca9.dtb \' >> ${MF}
+		[ ${SUPPORT_DTB} = "Y" -a ${SUPPORT_ONLYRUN} = "N" ] && echo -e '\t-dtb ${LINUX_DIR}/${ARCH}/boot/dts/vexpress-v2p-ca9.dtb \' >> ${MF}
+		[ ${SUPPORT_DTB} = "Y" -a ${SUPPORT_ONLYRUN} = "Y" ] && echo -e '\t-dtb ${ROOT}/images/vexpress-v2p-ca9.dtb \' >> ${MF}
 		# Support HardDisk
 		[ ${SUPPORT_BLK} = "Y" ]  && echo -e '\t-device virtio-blk-device,drive=hd1 \' >> ${MF}
 		[ ${SUPPORT_BLK} = "Y" ]  && echo -e '\t-drive file=${ROOT}/Freeze.img,format=raw,id=hd1 \' >> ${MF} 
 		# Support Mount root on HardDisk
 		[ ${SUPPORT_DISK} = "Y" ] && echo -e '\t-device virtio-blk-device,drive=hd0 \' >> ${MF}
-		[ ${SUPPORT_DISK} = "Y" -a ${SUPPORT_DESKTOP} = "N" ] && echo -e '\t-drive file=${ROOT}/BiscuitOS.img,format=raw,id=hd0 \' >> ${MF} 
-		[ ${SUPPORT_DISK} = "Y" -a ${SUPPORT_DESKTOP} = "Y" ] && echo -e '\t-drive file=${ROOT}/BiscuitOS-Desktop.img,format=raw,id=hd0 \' >> ${MF} 
+		[ ${SUPPORT_DISK} = "Y" ] && echo -e '\t-drive file=${ROOT}/BiscuitOS.img,format=raw,id=hd0 \' >> ${MF} 
 		# Support RAMDISK only
 		[ ${SUPPORT_DISK} = "N" ] && echo -e '\t-initrd ${ROOT}/BiscuitOS.img \' >> ${MF}
 		# Support Networking
@@ -457,6 +499,32 @@ case ${ARCH_NAME} in
 		echo -e '\t-nodefaults \' >> ${MF}
 		echo -e '\t-append "${CMDLINE}"' >> ${MF}
 	;;
+	x86)
+		echo -e '\tsudo ${QEMUT} ${ARGS} \' >> ${MF}
+		echo -e '\t-smp 2 \' >> ${MF}
+		echo -e '\t-m ${RAM_SIZE}M \' >> ${MF}
+		echo -e '\t-kernel ${LINUX_DIR}/${ARCH}/boot/bzImage \' >> ${MF}
+		# Support Ramdisk
+		echo -e '\t-initrd ${ROOT}/BiscuitOS.img \' >> ${MF}
+		# Support Networking
+		echo -e '\t-serial stdio \' >> ${MF}
+		echo -e '\t-nographic \' >> ${MF}
+		echo -e '\t-nodefaults \' >> ${MF}
+		echo -e '\t-append "${CMDLINE}"' >> ${MF}
+	;;
+	x86_64)
+		echo -e '\tsudo ${QEMUT} ${ARGS} \' >> ${MF}
+		echo -e '\t-smp 2 \' >> ${MF}
+		echo -e '\t-m ${RAM_SIZE}M \' >> ${MF}
+		echo -e '\t-kernel ${LINUX_DIR}/x86/boot/bzImage \' >> ${MF}
+		# Support Ramdisk
+		echo -e '\t-initrd ${ROOT}/BiscuitOS.img \' >> ${MF}
+		# Support Networking
+		echo -e '\t-serial stdio \' >> ${MF}
+		echo -e '\t-nographic \' >> ${MF}
+		echo -e '\t-nodefaults \' >> ${MF}
+		echo -e '\t-append "${CMDLINE}"' >> ${MF}
+	;;
 esac
 echo '}' >> ${MF}
 echo '' >> ${MF}
@@ -467,7 +535,7 @@ echo '' >> ${MF}
 echo '' >>  ${MF}
 echo 'do_package()' >>  ${MF}
 echo '{' >> ${MF}
-if [ ${SUPPORT_RPI} = "N" -a ${SUPPORT_DESKTOP} = "N" ]; then
+if [ ${SUPPORT_RPI} = "N" -a ${SUPPORT_DEBIAN} = "N" ]; then
 	echo -e '\tcp ${BUSYBOX}/_install/*  ${OUTPUT}/rootfs/${ROOTFS_NAME} -raf' >> ${MF}
 	echo -e '\tdd if=/dev/zero of=${OUTPUT}/rootfs/ramdisk bs=1M count=${ROOTFS_SIZE}' >> ${MF}
 	echo -e '\t${FS_TYPE_TOOLS} -F ${OUTPUT}/rootfs/ramdisk' >> ${MF}
@@ -479,8 +547,13 @@ if [ ${SUPPORT_RPI} = "N" -a ${SUPPORT_DESKTOP} = "N" ]; then
 	echo -e '\tsudo umount ${OUTPUT}/rootfs/tmpfs' >> ${MF}
 	if [ ${SUPPORT_RAMDISK} = "Y" ]; then
 		echo -e '\tgzip --best -c ${OUTPUT}/rootfs/ramdisk > ${OUTPUT}/rootfs/ramdisk.gz' >> ${MF}
-		echo -e '\tmkimage -n "ramdisk" -A arm -O linux -T ramdisk -C gzip \' >> ${MF}
-		echo -e '\t        -d ${OUTPUT}/rootfs/ramdisk.gz ${OUTPUT}/BiscuitOS.img' >> ${MF}
+		if [ ${ARCH_NAME} = "x86" -o ${ARCH_NAME} = "x86_64" ]; then
+			echo -e '\tmv ${OUTPUT}/rootfs/ramdisk.gz ${OUTPUT}/BiscuitOS.img' >> ${MF}
+			
+		else
+			echo -e '\tmkimage -n "ramdisk" -A arm -O linux -T ramdisk -C gzip \' >> ${MF}
+			echo -e '\t        -d ${OUTPUT}/rootfs/ramdisk.gz ${OUTPUT}/BiscuitOS.img' >> ${MF}
+		fi
 		echo -e '\trm -rf ${OUTPUT}/rootfs/tmpfs' >> ${MF}
 		echo -e '\trm -rf ${OUTPUT}/rootfs/ramdisk' >> ${MF}
 	else
@@ -525,7 +598,7 @@ if [ ${SUPPORT_RPI} = "N" -a ${SUPPORT_DESKTOP} = "N" ]; then
 		echo 'w' >> ${MF}
 		echo 'EOF' >> ${MF}
 	fi
-elif [ ${SUPPORT_RPI} = "Y" -a ${SUPPORT_DESKTOP} = "N" ]; then
+elif [ ${SUPPORT_RPI} = "Y" -a ${SUPPORT_DEBIAN} = "N" ]; then
 	echo -e '\t# SDCARD Partition: Bootload + Kernel + rootfs' >> ${MF}
 	echo -e '\t#' >> ${MF}
 	echo -e '\t# +-----------------+-----------------------+-------------------+' >> ${MF}
@@ -633,7 +706,7 @@ elif [ ${SUPPORT_RPI} = "Y" -a ${SUPPORT_DESKTOP} = "N" ]; then
 	echo -e '\tsudo umount ${OUTPUT}/rootfs/tmpfs' >> ${MF}
 	echo -e '\trm -rf ${OUTPUT}/rootfs/tmpfs' >> ${MF}
 	echo -e '\tsudo losetup -d ${loopdev}' >> ${MF}
-else # Qemu Desktop
+else # Qemu Debian
 	echo -e '\tif [ ! -f ${OUTPUT}/Freeze.img ]; then' >> ${MF}
 	echo -e '\t\tsudo dd if=/dev/zero of=${OUTPUT}/Freeze.img bs=1M count=${FREEZE_SIZE} > /dev/null 2>&1' >> ${MF}
 	echo -e '\t\tloopdev=`sudo losetup -f`' >> ${MF}
@@ -652,10 +725,10 @@ else # Qemu Desktop
 	echo -e '\t\t[ -d ${OUTPUT}/rootfs/rootfs ] && sudo rm -rf ${OUTPUT}/rootfs/rootfs' >> ${MF}
 	echo -e '\t\tsudo mkdir -p ${OUTPUT}/rootfs/rootfs' >> ${MF}
 	echo -e '\t\tcd ${OUTPUT}/rootfs/rootfs > /dev/null 2>&1' >> ${MF}
-	echo -e '\t\t[ ! -f ${DL}/buster-base-armel.tar.gz.bsp ] && echo "Buster not found!" && exit -1' >> ${MF}
-	echo -e '\t\tsudo cp ${DL}/buster-base-armel.tar.gz.bsp ${OUTPUT}/rootfs/rootfs' >> ${MF}
-	echo -e '\t\tsudo bsdtar -xpf buster-base-armel.tar.gz.bsp' >> ${MF}
-	echo -e '\t\tsudo rm -rf buster-base-armel.tar.gz.bsp' >> ${MF}
+	echo -e '\t\t[ ! -f ${DL}/${DEBIAN_PACKAGE} ] && echo "Buster not found!" && exit -1' >> ${MF}
+	echo -e '\t\tsudo cp ${DL}/${DEBIAN_PACKAGE} ${OUTPUT}/rootfs/rootfs' >> ${MF}
+	echo -e '\t\tsudo bsdtar -xpf ${DEBIAN_PACKAGE}' >> ${MF}
+	echo -e '\t\tsudo rm -rf ${DEBIAN_PACKAGE}' >> ${MF}
 	echo -e '\t\tcd - > /dev/null 2>&1' >> ${MF}
 	echo -e '\tfi' >> ${MF}
 	echo -e '\tsudo mkdir -p ${OUTPUT}/rootfs/tmpfs' >> ${MF}
@@ -669,32 +742,34 @@ fi
 echo '}' >> ${MF}
 echo '' >> ${MF}
 
-# Mount Freeze Image
-echo '' >>  ${MF}
-echo 'do_mount()' >>  ${MF}
-echo '{' >>  ${MF}
-echo -e '\tmkdir -p ${ROOT}/FreezeDir' >>  ${MF}
-echo -e '\tmountpoint -q ${ROOT}/FreezeDir' >>  ${MF}
-echo -e '\t[ $? = 0 ] && echo "FreezeDir has mount!" && exit 0' >>  ${MF}
-echo -e '\t## Mount Image' >>  ${MF}
-echo -e '\tsudo mount -t ${FS_TYPE} ${ROOT}/Freeze.img ${ROOT}/FreezeDir -o loop >> /dev/null 2>&1' >>  ${MF}
-echo -e '\tsudo chown ${USER}.${USER} -R ${ROOT}/FreezeDir' >>  ${MF}
-echo -e '\techo "=============================================="' >>  ${MF}
-echo -e '\techo "FreezeDisk: ${ROOT}/Freeze.img"' >>  ${MF}
-echo -e '\techo "MountDiret: ${ROOT}/FreezeDir"' >>  ${MF}
-echo -e '\techo "=============================================="' >>  ${MF}
-echo '}' >>  ${MF}
-echo '' >>  ${MF}
+if [ ${SUPPORT_FREEZE_DISK} = "Y" ]; then
+	# Mount Freeze Image
+	echo '' >>  ${MF}
+	echo 'do_mount()' >>  ${MF}
+	echo '{' >>  ${MF}
+	echo -e '\tmkdir -p ${ROOT}/FreezeDir' >>  ${MF}
+	echo -e '\tmountpoint -q ${ROOT}/FreezeDir' >>  ${MF}
+	echo -e '\t[ $? = 0 ] && echo "FreezeDir has mount!" && exit 0' >>  ${MF}
+	echo -e '\t## Mount Image' >>  ${MF}
+	echo -e '\tsudo mount -t ${FS_TYPE} ${ROOT}/Freeze.img ${ROOT}/FreezeDir -o loop >> /dev/null 2>&1' >>  ${MF}
+	echo -e '\tsudo chown ${USER}.${USER} -R ${ROOT}/FreezeDir' >>  ${MF}
+	echo -e '\techo "=============================================="' >>  ${MF}
+	echo -e '\techo "FreezeDisk: ${ROOT}/Freeze.img"' >>  ${MF}
+	echo -e '\techo "MountDiret: ${ROOT}/FreezeDir"' >>  ${MF}
+	echo -e '\techo "=============================================="' >>  ${MF}
+	echo '}' >>  ${MF}
+	echo '' >>  ${MF}
 
-# Umount Freeze Image
-echo '' >>  ${MF}
-echo 'do_umount()' >>  ${MF}
-echo '{' >>  ${MF}
-echo -e '\tmountpoint -q ${ROOT}/FreezeDir' >>  ${MF}
-echo -e '\t[ $? = 1 ] && return 0' >>  ${MF}
-echo -e '\tsudo umount ${ROOT}/FreezeDir > /dev/null 2>&1' >>  ${MF}
-echo '}' >>  ${MF}
-echo '' >>  ${MF}
+	# Umount Freeze Image
+	echo '' >>  ${MF}
+	echo 'do_umount()' >>  ${MF}
+	echo '{' >>  ${MF}
+	echo -e '\tmountpoint -q ${ROOT}/FreezeDir' >>  ${MF}
+	echo -e '\t[ $? = 1 ] && return 0' >>  ${MF}
+	echo -e '\tsudo umount ${ROOT}/FreezeDir > /dev/null 2>&1' >>  ${MF}
+	echo '}' >>  ${MF}
+	echo '' >>  ${MF}
+fi
 
 ## 
 # Command parse
@@ -710,11 +785,12 @@ if [ ${SUPPORT_UBOOT} = "Y" ]; then
 fi
 echo -e '\t"pack")' >> ${MF}
 echo -e '\t\t# Package BiscuitOS.img' >> ${MF}
-echo -e '\t\tdo_package' >> ${MF}
+[ ${SUPPORT_ONLYRUN} = "N" ] && echo -e '\t\tdo_package' >> ${MF}
+[ ${SUPPORT_ONLYRUN} = "Y" ] && echo -e '\t\techo "Packing"' >> ${MF}
 echo -e '\t\t;;' >> ${MF}
 echo -e '\t"debug")' >> ${MF}
 echo -e '\t\t# Debugging BiscuitOS' >> ${MF}
-echo -e '\t\tdo_umount' >> ${MF}
+[ ${SUPPORT_FREEZE_DISK} = "Y" ] && echo -e '\t\tdo_umount' >> ${MF}
 echo -e '\t\tdo_running debug' >> ${MF}
 echo -e '\t\t;;' >> ${MF}
 echo -e '\t"net")' >> ${MF}
@@ -722,29 +798,34 @@ echo -e '\t\t# Establish Netwroking' >> ${MF}
 echo -e '\t\tsudo ${NET_CFG}/bridge.sh' >> ${MF}
 echo -e '\t\tsudo cp -rf ${NET_CFG}/qemu-ifup /etc' >> ${MF}
 echo -e '\t\tsudo cp -rf ${NET_CFG}/qemu-ifdown /etc' >> ${MF}
-echo -e '\t\tdo_umount' >> ${MF}
-echo -e '\t\tdo_running net' >> ${MF}
+[ ${SUPPORT_FREEZE_DISK} = "Y" ] && echo -e '\t\tdo_umount' >> ${MF}
+[ ${SUPPORT_FREEZE_DISK} = "Y" ] && echo -e '\t\tdo_running net' >> ${MF}
 echo -e '\t\t;;' >> ${MF}
-echo -e '\t"mount")' >> ${MF}
-echo -e '\t\t# Mount Freeze Disk' >> ${MF}
-echo -e '\t\tdo_mount' >> ${MF}
-echo -e '\t\t;;' >> ${MF}
-echo -e '\t"umount")' >> ${MF}
-echo -e '\t\t# Umount Freeze Disk' >> ${MF}
-echo -e '\t\tdo_umount' >> ${MF}
-echo -e '\t\t;;' >> ${MF}
+if [ ${SUPPORT_FREEZE_DISK} = "Y" ]; then
+	echo -e '\t"mount")' >> ${MF}
+	echo -e '\t\t# Mount Freeze Disk' >> ${MF}
+	echo -e '\t\tdo_mount' >> ${MF}
+	echo -e '\t\t;;' >> ${MF}
+	echo -e '\t"umount")' >> ${MF}
+	echo -e '\t\t# Umount Freeze Disk' >> ${MF}
+	echo -e '\t\tdo_umount' >> ${MF}
+	echo -e '\t\t;;' >> ${MF}
+fi
 echo -e '\t*)' >> ${MF}
 echo -e '\t\t# Default Running BiscuitOS' >> ${MF}
-echo -e '\t\tdo_umount' >> ${MF}
+[ ${SUPPORT_FREEZE_DISK} = "Y" ] && echo -e '\t\tdo_umount' >> ${MF}
 [ ${SUPPORT_UBOOT} = "N" ] && echo -e '\t\tdo_running $1 $2' >> ${MF}
 [ ${SUPPORT_UBOOT} = "Y" ] && echo -e '\t\tdo_uboot' >> ${MF}
 echo -e '\t\t;;' >> ${MF}
 echo -e 'esac' >> ${MF}
 chmod 755 ${MF}
 
+######################################################
 ## Auto create README.md
+######################################################
 MF=${OUTPUT}/${README_NAME}
 [ -f ${MF} ] && rm -rf ${MF}
+
 echo "BiscuitOS ${PROJECT_NAME} Usermanual" >> ${MF}
 echo '--------------------------------' >> ${MF}
 echo '' >> ${MF}
@@ -754,10 +835,12 @@ echo '> - [Build Busybox](#A1)' >> ${MF}
 echo '>' >> ${MF}
 echo '> - [Re-Build Rootfs](#A2)' >> ${MF}
 echo '>' >> ${MF}
-echo '> - [Mount a Freeze Disk](#A3)' >> ${MF}
-echo '>' >> ${MF}
-echo '> - [Un-mount a Freeze Disk](#A4)' >> ${MF}
-echo '>' >> ${MF}
+if [ ${SUPPORT_FREEZE_DISK} = "Y" ]; then
+	echo '> - [Mount a Freeze Disk](#A3)' >> ${MF}
+	echo '>' >> ${MF}
+	echo '> - [Un-mount a Freeze Disk](#A4)' >> ${MF}
+	echo '>' >> ${MF}
+fi
 echo '> - [Running BiscuitOS](#A5)' >> ${MF}
 echo '>' >> ${MF}
 echo '> - [Debugging BiscuitOS](#A6)' >> ${MF}
@@ -877,269 +960,362 @@ case ${ARCH_NAME} in
 		echo "make ARCH=riscv CROSS_COMPILE=${DEF_KERNEL_CROSS} modules -j4" >> ${MF}
 		echo "make ARCH=riscv INSTALL_MOD_PATH=${MODULE_INSTALL_PATH} modules_install" >> ${MF}
 	;;
+	x86)
+		echo "make ARCH=i386 clean" >> ${MF}
+		echo "make ARCH=i386 i386_defconfig" >> ${MF}
+		echo "make ARCH=i386 menuconfig" >> ${MF}
+		echo '' >> ${MF}
+		echo '  General setup --->' >> ${MF}
+		echo '        [*]Initial RAM filesystem and RAM disk (initramfs/initrd) support' >> ${MF}
+		echo '' >> ${MF}
+		echo '  Device Driver --->' >> ${MF}
+		echo '        [*] Block devices --->' >> ${MF}
+		echo '              <*> RAM block device support' >> ${MF}
+		echo "              (${ROOTFS_BLOCKS}) Default RAM disk size" >> ${MF}
+		echo '' >> ${MF}
+		echo "make ARCH=i386 bzImage -j4" >> ${MF}
+		echo "make ARCH=i386 modules -j4" >> ${MF}
+		echo "make ARCH=i386 INSTALL_MOD_PATH=${MODULE_INSTALL_PATH} modules_install" >> ${MF}
+	;;
+	x86_64)
+		echo "make ARCH=x86_64 clean" >> ${MF}
+		echo "make ARCH=x86_64 x86_64_defconfig" >> ${MF}
+		echo "make ARCH=x86_64 menuconfig" >> ${MF}
+		echo '' >> ${MF}
+		echo '  General setup --->' >> ${MF}
+		echo '        [*]Initial RAM filesystem and RAM disk (initramfs/initrd) support' >> ${MF}
+		echo '' >> ${MF}
+		echo '  Device Driver --->' >> ${MF}
+		echo '        [*] Block devices --->' >> ${MF}
+		echo '              <*> RAM block device support' >> ${MF}
+		echo "              (${ROOTFS_BLOCKS}) Default RAM disk size" >> ${MF}
+		echo '' >> ${MF}
+		echo "make ARCH=x86_64 bzImage -j4" >> ${MF}
+		echo "make ARCH=x86_64 modules -j4" >> ${MF}
+		echo "make ARCH=x86_64 INSTALL_MOD_PATH=${MODULE_INSTALL_PATH} modules_install" >> ${MF}
+	;;
 esac
 echo '```' >> ${MF}
 echo '' >> ${MF}
 
-if [ ${SUPPORT_DESKTOP} = "N" ]; then
-	##
-	# Busybox Configure and Compile
-	echo '---------------------------------' >> ${MF}
-	echo '<span id="A1"></span>' >> ${MF}
-	echo '' >> ${MF}
-	echo '## Build Busybox' >> ${MF}
-	echo '' >> ${MF}
-	echo '```' >> ${MF}
-	echo "cd ${OUTPUT}/busybox/busybox" >> ${MF}
-	echo 'make clean' >> ${MF}
-	echo 'make menuconfig' >> ${MF}
-	echo '' >> ${MF}
-	echo '  Busybox Settings --->' >> ${MF}
-	echo '    Build Options --->' >> ${MF}
-	echo '      [*] Build BusyBox as a static binary (no shared libs)' >> ${MF}
-	echo '' >> ${MF}
-	echo "make CROSS_COMPILE=${DEF_KERNEL_CROSS} -j4" >> ${MF}
-	echo '' >> ${MF}
-	echo "make CROSS_COMPILE=${DEF_KERNEL_CROSS} install" >> ${MF}
-	echo '```' >> ${MF}
-fi
+#############################################
+# Busybox
+#############################################
+README_busybox()
+{
+cat << EOF >> ${1}
+---------------------------------
+<span id="A1"></span>
 
-##
+## Build Busybox
+
+\`\`\`
+cd ${OUTPUT}/busybox/busybox
+make clean
+make menuconfig
+
+  Busybox Settings --->
+    Build Options --->
+      [*] Build BusyBox as a static binary (no shared libs)
+EOF
+	if [ ${ARCH_NAME}Y = "x86Y" ]; then
+		echo '      (-m32 -march=i386 -mtune=i386) Additional CFLAGS' >> ${1}
+		echo '      (-m32) Additional LDFLAGS' >> ${1}
+		echo '' >> ${1}
+		echo "make -j4" >> ${1}
+		echo "make install" >> ${1}
+		echo '```' >> ${MF}
+	elif [ ${ARCH_NAME}Y = "x86_64Y" ]; then
+		echo '' >> ${1}
+		echo "make -j4" >> ${1}
+		echo "make install" >> ${1}
+		echo '```' >> ${1}
+	else
+		echo '' >> ${1}
+		echo "make CROSS_COMPILE=${DEF_KERNEL_CROSS} -j4" >> ${1}
+		echo '' >> ${1}
+		echo "make CROSS_COMPILE=${DEF_KERNEL_CROSS} install" >> ${1}
+		echo '```' >> ${1}
+	fi
+}
+
+##############################################
 # Re-build Rootfs
-echo '' >> ${MF}
-echo '---------------------------------' >> ${MF}
-echo '<span id="A2"></span>' >> ${MF}
-echo '' >> ${MF}
-echo '## Re-Build Rootfs' >> ${MF}
-echo '' >> ${MF}
-echo '```' >> ${MF}
-echo "cd ${OUTPUT}" >> ${MF}
-echo "./${RUNSCP_NAME} pack" >> ${MF}
-echo '```' >> ${MF}
-echo '' >> ${MF}
+##############################################
+README_pack()
+{
+cat << EOF >> ${1}
+---------------------------------
+<span id="A2"></span>
 
-##
+## Re-Build Rootfs
+
+\`\`\`
+cd ${OUTPUT}
+./${RUNSCP_NAME} pack
+\`\`\`
+EOF
+}
+
+##############################################
 # Running Uboot
-echo '' >> ${MF}
-if [ ${SUPPORT_UBOOT} = "Y" ]; then
-	echo '---------------------------------' >> ${MF}
-	echo '<span id="A9"></span>' >> ${MF}
-	echo '' >> ${MF}
-	echo '## Running Uboot' >> ${MF}
-	echo '' >> ${MF}
-	echo '```' >> ${MF}
-	echo "cd ${OUTPUT}" >> ${MF}
-	echo "./${RUNSCP_NAME} uboot" >> ${MF}
-	echo '```' >> ${MF}
-	echo '' >> ${MF}
-fi
+##############################################
+README_uboot()
+{
+cat << EOF >> ${1}
+---------------------------------
+<span id="A9"></span>
 
-##
-# Mount a Freeze Disk
-echo '' >> ${MF}
-echo '---------------------------------' >> ${MF}
-echo '<span id="A3"></span>' >> ${MF}
-echo '' >> ${MF}
-echo '## Mount a Freeze Disk' >> ${MF}
-echo '' >> ${MF}
-echo '```' >> ${MF}
-echo "cd ${OUTPUT}" >> ${MF}
-echo "./${RUNSCP_NAME} mount" >> ${MF}
-echo "cd ${OUTPUT}/FreezeDir" >> ${MF}
-echo '```' >> ${MF}
-echo '' >> ${MF}
+## Running Uboot
 
-##
-# Un-mount a Freeze Disk
-echo '' >> ${MF}
-echo '---------------------------------' >> ${MF}
-echo '<span id="A4"></span>' >> ${MF}
-echo '' >> ${MF}
-echo '## Un-mount a Freeze Disk' >> ${MF}
-echo '' >> ${MF}
-echo '```' >> ${MF}
-echo "cd ${OUTPUT}" >> ${MF}
-echo "./${RUNSCP_NAME} umount" >> ${MF}
-echo '```' >> ${MF}
-echo '' >> ${MF}
+\`\`\`
+cd ${OUTPUT}
+./${RUNSCP_NAME} uboot
+\`\`\`
+EOF
+}
 
-##
+##############################################
+# Mount/Unmount a Freeze Disk
+##############################################
+README_mount_freeze()
+{
+cat << EOF >> ${1}
+---------------------------------
+<span id="A3"></span>
+
+## Mount a Freeze Disk
+
+\`\`\`
+cd ${OUTPUT}
+./${RUNSCP_NAME} mount
+cd ${OUTPUT}/FreezeDir
+\`\`\`
+
+---------------------------------
+<span id="A4"></span>
+
+## Un-mount a Freeze Disk
+
+\`\`\`
+cd ${OUTPUT}
+./${RUNSCP_NAME} umount
+\`\`\`
+
+EOF
+}
+
+###################################################
 # Lanuch a Linux Disto
-echo '' >> ${MF}
-echo '---------------------------------' >> ${MF}
-echo '<span id="A5"></span>' >> ${MF}
-echo '' >> ${MF}
-echo '## Running BiscuitOS' >> ${MF}
-echo '' >> ${MF}
-echo '```' >> ${MF}
-echo "cd ${OUTPUT}" >> ${MF}
-echo "./${RUNSCP_NAME}" >> ${MF}
-echo '```' >> ${MF}
-echo '' >> ${MF}
-case ${ARCH_NAME} in
-	arm)
-		echo '---------------------------------' >> ${MF}
-		echo '<span id="A6"></span>' >> ${MF}
-		echo '' >> ${MF}
-		echo '## Debuging BiscuitOS' >> ${MF}
-		echo '' >> ${MF}
-		echo '> - [Debugging zImage before Relocated](#B0)' >> ${MF}
-		echo '>' >> ${MF}
-		echo '> - [Debugging zImage After Relocated](#B1)' >> ${MF}
-		echo '>' >> ${MF}
-		echo '> - [Debugging kernel MMU OFF before start_kernel](#B2)' >> ${MF}
-		echo '>' >> ${MF}
-		echo '> - [Debugging kernel MMU ON before start_kernel](#B3)' >> ${MF}
-		echo '>' >> ${MF}
-		echo '> - [Debugging kernel after start_kernel](#B4)' >> ${MF}
-		echo '' >> ${MF}
-		echo '--------------------------------' >> ${MF}
-		echo '<span id="B0"></span>' >> ${MF}
-		echo '' >> ${MF}
-		echo '#### Debugging zImage before Relocated' >> ${MF}
-		echo '' >> ${MF}
-		echo '###### First Terminal' >> ${MF}
-		echo '' >> ${MF}
-		echo '```' >> ${MF}
-		echo "cd ${OUTPUT}" >> ${MF}
-		echo "./${RUNSCP_NAME} debug" >> ${MF}
-		echo '```' >> ${MF}
-		echo '' >> ${MF}
-		echo '###### Second Terminal' >> ${MF}
-		echo '' >> ${MF}
-		echo '```' >> ${MF}
-		echo "${OUTPUT}/${CROSS_COMPILE}/${CROSS_COMPILE}/bin/${CROSS_COMPILE}-gdb -x ${OUTPUT}/package/gdb/gdb_zImage" >> ${MF}
-		echo '' >> ${MF}
-		echo '(gdb) b XXX_bk' >> ${MF}
-		echo '(gdb) c' >> ${MF}
-		echo '(gdb) info reg' >> ${MF}
-		echo '```' >> ${MF}
-		echo '' >> ${MF}
-		echo '--------------------------------' >> ${MF}
-		echo '<span id="B1"></span>' >> ${MF}
-		echo '' >> ${MF}
-		echo '#### Debugging zImage After Relocated' >> ${MF}
-		echo '' >> ${MF}
-		echo '###### First Terminal' >> ${MF}
-		echo '' >> ${MF}
-		echo '```' >> ${MF}
-		echo "cd ${OUTPUT}" >> ${MF}
-		echo "./${RUNSCP_NAME} debug" >> ${MF}
-		echo '```' >> ${MF}
-		echo '' >> ${MF}
-		echo '###### Second Terminal' >> ${MF}
-		echo '' >> ${MF}
-		echo '```' >> ${MF}
-		echo "${OUTPUT}/${CROSS_COMPILE}/${CROSS_COMPILE}/bin/${CROSS_COMPILE}-gdb -x ${OUTPUT}/package/gdb/gdb_RzImage" >> ${MF}
-		echo '' >> ${MF}
-		echo '(gdb) b XXX_bk' >> ${MF}
-		echo '(gdb) c' >> ${MF}
-		echo '(gdb) info reg' >> ${MF}
-		echo '```' >> ${MF}
-		echo '' >> ${MF}
-		echo '--------------------------------' >> ${MF}
-		echo '<span id="B2"></span>' >> ${MF}
-		echo '' >> ${MF}
-		echo '#### Debugging kernel MMU OFF before start_kernel' >> ${MF}
-		echo '' >> ${MF}
-		echo '###### First Terminal' >> ${MF}
-		echo '' >> ${MF}
-		echo '```' >> ${MF}
-		echo "cd ${OUTPUT}" >> ${MF}
-		echo "./${RUNSCP_NAME} debug" >> ${MF}
-		echo '```' >> ${MF}
-		echo '' >> ${MF}
-		echo '###### Second Terminal' >> ${MF}
-		echo '' >> ${MF}
-		echo '```' >> ${MF}
-		echo "${OUTPUT}/${CROSS_COMPILE}/${CROSS_COMPILE}/bin/${CROSS_COMPILE}-gdb -x ${OUTPUT}/package/gdb/gdb_Image" >> ${MF}
-		echo '' >> ${MF}
-		echo '(gdb) b XXX_bk' >> ${MF}
-		echo '(gdb) c' >> ${MF}
-		echo '(gdb) info reg' >> ${MF}
-		echo '```' >> ${MF}
-		echo '' >> ${MF}
-		echo '--------------------------------' >> ${MF}
-		echo '<span id="B3"></span>' >> ${MF}
-		echo '' >> ${MF}
-		echo '#### Debugging kernel MMU ON before start_kernel' >> ${MF}
-		echo '' >> ${MF}
-		echo '###### First Terminal' >> ${MF}
-		echo '' >> ${MF}
-		echo '```' >> ${MF}
-		echo "cd ${OUTPUT}" >> ${MF}
-		echo "./${RUNSCP_NAME} debug" >> ${MF}
-		echo '```' >> ${MF}
-		echo '' >> ${MF}
-		echo '###### Second Terminal' >> ${MF}
-		echo '' >> ${MF}
-		echo '```' >> ${MF}
-		echo "${OUTPUT}/${CROSS_COMPILE}/${CROSS_COMPILE}/bin/${CROSS_COMPILE}-gdb -x ${OUTPUT}/package/gdb/gdb_RImage" >> ${MF}
-		echo '' >> ${MF}
-		echo '(gdb) b XXX_bk' >> ${MF}
-		echo '(gdb) c' >> ${MF}
-		echo '(gdb) info reg' >> ${MF}
-		echo '```' >> ${MF}
-		echo '' >> ${MF}
-		echo '--------------------------------' >> ${MF}
-		echo '<span id="B4"></span>' >> ${MF}
-		echo '' >> ${MF}
-		echo '#### Debugging kernel after start_kernel' >> ${MF}
-		echo '' >> ${MF}
-		echo '###### First Terminal' >> ${MF}
-		echo '' >> ${MF}
-		echo '```' >> ${MF}
-		echo "cd ${OUTPUT}" >> ${MF}
-		echo "./${RUNSCP_NAME} debug" >> ${MF}
-		echo '```' >> ${MF}
-		echo '' >> ${MF}
-		echo '###### Second Terminal' >> ${MF}
-		echo '' >> ${MF}
-		echo '```' >> ${MF}
-		echo "${OUTPUT}/${CROSS_COMPILE}/${CROSS_COMPILE}/bin/${CROSS_COMPILE}-gdb ${OUTPUT}/linux/linux/vmlinux -x ${OUTPUT}/package/gdb/gdb_Kernel" >> ${MF}
-		echo '' >> ${MF}
-		echo '(gdb) b XXX_bk' >> ${MF}
-		echo '(gdb) c' >> ${MF}
-		echo '(gdb) info reg' >> ${MF}
-		echo '```' >> ${MF}
-		;;
-	arm64)
-		echo '---------------------------------' >> ${MF}
-                echo '<span id="A6"></span>' >> ${MF}
-                echo '' >> ${MF}
-                echo '## Debuging BiscuitOS' >> ${MF}
-                echo '' >> ${MF}
-		echo '###### First Terminal' >> ${MF}
-		echo '' >> ${MF}
-		echo '```' >> ${MF}
-		echo "cd ${OUTPUT}" >> ${MF}
-		echo "./${RUNSCP_NAME} debug" >> ${MF}
-		echo '```' >> ${MF}
-		echo '' >> ${MF}
-		echo '###### Second Terminal' >> ${MF}
-		echo '' >> ${MF}
-		echo '```' >> ${MF}
-		echo "${OUTPUT}/${CROSS_COMPILE}/${CROSS_COMPILE}/bin/${CROSS_COMPILE}-gdb ${OUTPUT}/linux/linux/vmlinux" >> ${MF}
-		echo '' >> ${MF}
-		echo '(gdb) target remote :1234' >> ${MF}
-		echo '(gdb) b start_kernel' >> ${MF}
-		echo '(gdb) c' >> ${MF}
-		echo '(gdb) info reg' >> ${MF}
-		echo '```' >> ${MF}
-		echo '' >> ${MF}
-		;;
-esac
+###################################################
+README_launch_BiscuitOS()
+{
+cat << EOF >> ${1}
+---------------------------------
+<span id="A5"></span>
 
-##
+## Running BiscuitOS
+
+\`\`\`
+cd ${OUTPUT}
+./${RUNSCP_NAME}
+\`\`\`
+
+EOF
+}
+
+####################################################
+# Debug BiscuitOS (Linux/uboot)
+#####################################################
+# ARM
+README_arm_debug()
+{
+cat << EOF >> ${1}
+---------------------------------
+<span id="A6"></span>
+
+## Debuging BiscuitOS
+
+> - [Debugging zImage before Relocated](#B0)
+>
+> - [Debugging zImage After Relocated](#B1)
+>
+> - [Debugging kernel MMU OFF before start_kernel](#B2)
+>
+> - [Debugging kernel MMU ON before start_kernel](#B3)
+>
+> - [Debugging kernel after start_kernel](#B4)
+
+--------------------------------
+<span id="B0"></span>
+
+#### Debugging zImage before Relocated
+
+\`\`\`
+> First Terminal
+
+cd ${OUTPUT}
+./${RUNSCP_NAME} debug
+
+> Second Terminal
+
+${OUTPUT}/${CROSS_COMPILE}/${CROSS_COMPILE}/bin/${CROSS_COMPILE}-gdb -x ${OUTPUT}/package/gdb/gdb_zImage
+
+(gdb) b XXX_bk
+(gdb) c
+(gdb) info reg
+\`\`\`
+
+--------------------------------
+<span id="B1"></span>
+
+#### Debugging zImage After Relocated
+
+\`\`\`
+> First Terminal
+
+cd ${OUTPUT}
+./${RUNSCP_NAME} debug
+
+> Second Terminal
+
+${OUTPUT}/${CROSS_COMPILE}/${CROSS_COMPILE}/bin/${CROSS_COMPILE}-gdb -x ${OUTPUT}/package/gdb/gdb_RzImage
+
+(gdb) b XXX_bk
+(gdb) c
+(gdb) info reg
+\`\`\`
+
+--------------------------------
+<span id="B2"></span>
+
+#### Debugging kernel MMU OFF before start_kernel
+
+\`\`\`
+> First Terminal
+
+cd ${OUTPUT}
+./${RUNSCP_NAME} debug
+
+> Second Terminal
+
+${OUTPUT}/${CROSS_COMPILE}/${CROSS_COMPILE}/bin/${CROSS_COMPILE}-gdb -x ${OUTPUT}/package/gdb/gdb_Image
+
+(gdb) b XXX_bk
+(gdb) c
+(gdb) info reg
+\`\`\`
+
+--------------------------------
+<span id="B3"></span>
+
+#### Debugging kernel MMU ON before start_kernel
+
+\`\`\`
+> First Terminal
+
+cd ${OUTPUT}
+./${RUNSCP_NAME} debug
+
+> Second Terminal
+
+${OUTPUT}/${CROSS_COMPILE}/${CROSS_COMPILE}/bin/${CROSS_COMPILE}-gdb -x ${OUTPUT}/package/gdb/gdb_RImage
+
+(gdb) b XXX_bk
+(gdb) c
+(gdb) info reg
+
+\`\`\`
+
+--------------------------------
+<span id="B4"></span>
+
+#### Debugging kernel after start_kernel
+
+\`\`\`
+> First Terminal
+
+cd ${OUTPUT}
+./${RUNSCP_NAME} debug
+
+> Second Terminal
+
+${OUTPUT}/${CROSS_COMPILE}/${CROSS_COMPILE}/bin/${CROSS_COMPILE}-gdb ${OUTPUT}/linux/linux/vmlinux -x ${OUTPUT}/package/gdb/gdb_Kernel
+
+(gdb) b XXX_bk
+(gdb) c
+(gdb) info reg
+\`\`\`
+
+EOF
+}
+
+# ARM64
+README_arm64_debug()
+{
+cat << EOF >> ${1}
+---------------------------------
+<span id="A6"></span>
+
+## Debuging BiscuitOS
+
+\`\`\`
+> First Terminal
+
+cd ${OUTPUT}
+./${RUNSCP_NAME} debug
+
+> Second Terminal
+
+${OUTPUT}/${CROSS_COMPILE}/${CROSS_COMPILE}/bin/${CROSS_COMPILE}-gdb ${OUTPUT}/linux/linux/vmlinux
+
+(gdb) target remote :1234
+(gdb) b start_kernel
+(gdb) c
+\`\`\`
+
+EOF
+}
+
+README_debug()
+{
+	case ${ARCH_NAME} in
+		arm)
+			README_arm_debug ${1}
+		;;
+		arm64)
+			README_arm64_debug ${1}
+		;;
+	esac
+}
+
+##############################################
 # Lanuch BiscuitOS Networking
-echo '' >> ${MF}
-echo '---------------------------------' >> ${MF}
-echo '<span id="A7"></span>' >> ${MF}
-echo '' >> ${MF}
-echo '## Running BiscuitOS with NetWorking' >> ${MF}
-echo '' >> ${MF}
-echo '```' >> ${MF}
-echo "cd ${OUTPUT}" >> ${MF}
-echo "./${RUNSCP_NAME} net" >> ${MF}
-echo '```' >> ${MF}
-echo '' >> ${MF}
+##############################################
+README_networking()
+{
+cat << EOF >> ${MF}
+
+---------------------------------
+
+## Running BiscuitOS with NetWorking
+
+\`\`\`
+cd ${OUTPUT}
+./${RUNSCP_NAME} net
+\`\`\`
+
+EOF
+}
+
+########################################
+# List README
+########################################
+
+[ ${SUPPORT_BUSYBOX} = "Y" ] && README_busybox ${MF}
+README_pack ${MF}
+[ ${SUPPORT_FREEZE_DISK} = "Y" ] && README_mount_freeze ${MF}
+[ ${SUPPORT_UBOOT} = "Y" ] && README_uboot ${MF}
+README_launch_BiscuitOS ${MF}
+[ ${SUPPORT_NETWORK} = "Y" ] && README_networking ${MF}
+README_debug ${MF}
