@@ -1,5 +1,5 @@
 menuconfig PK_KMAP_USERSPACE
-	bool "Kmap/Fixmap Memory Allocator on Userspace"
+	bool "Kmap Memory Allocator on Userspace"
 
 if PK_KMAP_USERSPACE
 
