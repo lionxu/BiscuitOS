@@ -65,6 +65,14 @@ DATE_COMT=`date +"%Y.%m.%d"`
 BASEPKNAME=${PACKAGE_NAME}-${PACKAGE_VERSION}
 PACKAGE_BSBIT=${PPATH}/bsbit
 
+# Determine Architecture
+ARCH=unknown
+[[ ${PROJECT_NAME} == *arm32* ]]   && ARCH=arm
+[[ ${PROJECT_NAME} == *aarch* ]]   && ARCH=arm64
+[[ ${PROJECT_NAME} == *i386* ]]    && ARCH=i386
+[[ ${PROJECT_NAME} == *x86_64* ]]  && ARCH=x86_64
+[[ ${PROJECT_NAME} == *riscv* ]]   && ARCH=riscv
+
 ## Prepare
 mkdir -p ${ROOTFS_ROOT}/usr/lib
 mkdir -p ${ROOTFS_ROOT}/usr/include
@@ -87,6 +95,7 @@ echo '' >> ${MF}
 echo '## Default Setup' >> ${MF}
 echo "ROOT        := ${OUTPUT}" >> ${MF}
 echo "BSROOT      := ${PROJECT_ROOT}" >> ${MF}
+echo "ARCH        := ${ARCH}" >> ${MF}
 echo "CROSS_NAME  := ${PACKAGE_TOOL}" >> ${MF}
 echo 'CROSS_PATH  := $(ROOT)/$(CROSS_NAME)/$(CROSS_NAME)' >> ${MF}
 echo 'CROSS_TOOL  := $(CROSS_PATH)/bin/$(CROSS_NAME)-' >> ${MF}
@@ -125,7 +134,8 @@ echo 'all:' >> ${MF}
 echo -e '\t@cd $(BASENAME) ; \' >> ${MF}
 echo -e '\tPATH=$(CROSS_PATH)/bin:${PATH}  \' >> ${MF}
 echo -e '\tmake CROSS_TOOLS=$(CROSS_NAME) \' >> ${MF}
-echo -e '\tBSROOT=$(ROOT)' >> ${MF}
+echo -e '\tBSROOT=$(ROOT) ARCH=$(ARCH) \' >> ${MF}
+echo -e '\tMODULE_NAME=$(BASENAME)' >> ${MF}
 echo -e '\t$(info "Build $(PACKAGE) done.")' >> ${MF}
 echo -e '\t@if [ "${BS_SILENCE}X" != "trueX" ]; then \' >> ${MF}
 echo -e '\t\tfiglet "BiscuitOS" ; \' >> ${MF}
@@ -172,7 +182,7 @@ echo 'install:' >> ${MF}
 echo -e '\tcd $(BASENAME) ; \' >> ${MF}
 echo -e '\tPATH=$(CROSS_PATH)/bin:${PATH} \' >> ${MF}
 echo -e '\tmake install CROSS_TOOLS=$(CROSS_NAME) \' >> ${MF}
-echo -e '\tBSROOT=$(ROOT)' >> ${MF}
+echo -e '\tBSROOT=$(ROOT) ARCH=$(ARCH)' >> ${MF}
 echo -e '\t@if [ "${BS_SILENCE}X" != "trueX" ]; then \' >> ${MF}
 echo -e '\t\tfiglet "BiscuitOS" ; \' >> ${MF}
 echo -e '\tfi' >> ${MF}
@@ -181,6 +191,23 @@ echo '' >> ${MF}
 echo 'pack:' >> ${MF}
 echo -e '\t@$(PACK) pack' >> ${MF}
 echo -e '\t$(info "Pack    .... [OK]")' >> ${MF}
+echo '' >> ${MF}
+echo 'build:' >> ${MF}
+echo -e '\tmake' >> ${MF}
+echo -e '\tmake install pack' >> ${MF}
+echo -e '\t$(ROOT)/RunBiscuitOS.sh' >> ${MF}
+echo '' >> ${MF}
+echo 'kernel:' >> ${MF}
+echo -e '\t@cd $(ROOT)/linux/linux ; \' >> ${MF}
+if [ ${ARCH} == "i386" -o ${ARCH} == "x86_64" ]; then
+	echo -e '\tmake  ARCH=$(ARCH) bzImage -j4 ;\' >> ${MF}
+else
+	echo -e '\tmake  ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_TOOL) -j4 ;\' >> ${MF}
+fi
+echo -e '\tcd - > /dev/null' >> ${MF}
+echo '' >> ${MF}
+echo 'run:' >> ${MF}
+echo -e '\t$(ROOT)/RunBiscuitOS.sh' >> ${MF}
 echo '' >> ${MF}
 echo 'clean:' >> ${MF}
 echo -e '\tcd $(BASENAME) ; \' >> ${MF}

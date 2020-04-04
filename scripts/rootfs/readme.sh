@@ -151,7 +151,7 @@ detect_kernel_version_field
 # DTB support
 # --> Only ARM >= 4.x support DTB
 [ ${ARCH_NAME} == "arm" -a ${KERNEL_MAJOR_NO} -ge 4 ] && SUPPORT_DTB=Y
-[ ${ARCH_NAME} == "arm" -a ${KERNEL_MAJOR_NO} -ge 3 -a ${KERNEL_MINOR_NO} -gt 4 ] && SUPPORT_DTB=Y
+[ ${ARCH_NAME} == "arm" -a ${KERNEL_MAJOR_NO} -ge 3 -a ${KERNEL_MINOR_NO} -gt 15 ] && SUPPORT_DTB=Y
 
 # Support RAMDISK (2.x/3.x Support)
 # --> Mount / at RAMDISK
@@ -179,6 +179,7 @@ detect_kernel_version_field
 # --> Kernel < 3.10 Only support EXT3
 [ ${KERNEL_MAJOR_NO} -eq 3 -a ${KERNEL_MINOR_NO} -lt 10 ] && SUPPORT_EXT3=Y
 [ ${KERNEL_MAJOR_NO} -lt 3 ] && SUPPORT_EXT3=Y
+[ ${KERNEL_MAJOR_NO} -eq 3 -a ${KERNEL_MINOR_NO} -lt 21 -a ${ARCH_NAME} = "arm" ] && SUPPORT_EXT3=Y
 
 # CROSS_CROMPILE
 [ ${SUPPORT_2_X} = "Y" ] && SUPPORT_NONE_GNU=Y
@@ -222,6 +223,11 @@ if [ ${SUPPORT_NONE_GNU} = "Y" ]; then
 else
 	DEF_UBOOT_CROOS=${UCROSS_PATH}/bin/${UBOOT_CROSS}-
 	DEF_KERNEL_CROSS=${KCROSS_PATH}/bin/${CROSS_COMPILE}-
+fi
+
+## Lower version uboot tools
+if [ ${UBOOT_CROSS}X = "arm-none-linux-gnueabiX" ]; then
+	DEF_UBOOT_CROOS=${OUTPUT}/${CROSS_COMPILE}/uboot-${CROSS_COMPILE}/bin/arm-none-linux-gnueabi-
 fi
 
 ##
@@ -434,10 +440,10 @@ case ${ARCH_NAME} in
 		[ ${SUPPORT_DISK} = "Y" ] && echo -e '\t-drive file=${ROOT}/BiscuitOS.img,format=raw,id=hd0 \' >> ${MF} 
 		# Support RAMDISK only
 		[ ${SUPPORT_DISK} = "N" ] && echo -e '\t-initrd ${ROOT}/BiscuitOS.img \' >> ${MF}
-		# Support Networking
-		echo -e '\t-serial stdio \' >> ${MF}
+		# Discard Ctrl-C to exit and default Ctrl-A + X
+		# echo -e '\t-serial stdio \' >> ${MF}
+		# echo -e '\t-nodefaults \' >> ${MF}
 		[ ${SUPPORT_DESKTOP} = "N" ] && echo -e '\t-nographic \' >> ${MF}
-		echo -e '\t-nodefaults \' >> ${MF}
 		echo -e '\t-append "${CMDLINE}"' >> ${MF}
 	;;
 	arm64)
@@ -455,10 +461,10 @@ case ${ARCH_NAME} in
 		[ ${SUPPORT_DISK} = "Y" ] && echo -e '\t-drive if=none,file=${ROOT}/BiscuitOS.img,format=raw,id=hd0 \' >> ${MF} 
 		# Support RAMDISK only
 		[ ${SUPPORT_DISK} = "N" ] && echo -e '\t-initrd ${ROOT}/BiscuitOS.img \' >> ${MF}
-		# Support Networking
-		echo -e '\t-serial stdio \' >> ${MF}
+		# discard Ctrl-C to exit and default Ctrl-A + X
+		# echo -e '\t-serial stdio \' >> ${MF}
+		# echo -e '\t-nodefaults \' >> ${MF}
 		echo -e '\t-nographic \' >> ${MF}
-		echo -e '\t-nodefaults \' >> ${MF}
 		echo -e '\t-append "${CMDLINE}"' >> ${MF}
 	;;
 	riscv32)
@@ -474,10 +480,10 @@ case ${ARCH_NAME} in
 		[ ${SUPPORT_BLK} = "Y" ]  && echo -e '\t-drive if=none,file=${ROOT}/Freeze.img,format=raw,id=hd1 \' >> ${MF} 
 		# Support RAMDISK only
 		[ ${SUPPORT_DISK} = "N" ] && echo -e '\t-initrd ${ROOT}/BiscuitOS.img \' >> ${MF}
-		# Support Networking
-		echo -e '\t-serial stdio \' >> ${MF}
+		# Discard Ctrl-C to exit and default Ctrl-A + X
+		# echo -e '\t-serial stdio \' >> ${MF}
+		# echo -e '\t-nodefaults \' >> ${MF}
 		echo -e '\t-nographic \' >> ${MF}
-		echo -e '\t-nodefaults \' >> ${MF}
 		echo -e '\t-append "${CMDLINE}"' >> ${MF}
 	;;
 	riscv64)
@@ -493,10 +499,10 @@ case ${ARCH_NAME} in
 		[ ${SUPPORT_BLK} = "Y" ]  && echo -e '\t-drive if=none,file=${ROOT}/Freeze.img,format=raw,id=hd1 \' >> ${MF} 
 		# Support RAMDISK only
 		[ ${SUPPORT_DISK} = "N" ] && echo -e '\t-initrd ${ROOT}/BiscuitOS.img \' >> ${MF}
-		# Support Networking
-		echo -e '\t-serial stdio \' >> ${MF}
+		# Discard Ctrl-C to exit and default Ctrl-A + X
+		# echo -e '\t-serial stdio \' >> ${MF}
+		# echo -e '\t-nodefaults \' >> ${MF}
 		echo -e '\t-nographic \' >> ${MF}
-		echo -e '\t-nodefaults \' >> ${MF}
 		echo -e '\t-append "${CMDLINE}"' >> ${MF}
 	;;
 	x86)
@@ -506,10 +512,10 @@ case ${ARCH_NAME} in
 		echo -e '\t-kernel ${LINUX_DIR}/${ARCH}/boot/bzImage \' >> ${MF}
 		# Support Ramdisk
 		echo -e '\t-initrd ${ROOT}/BiscuitOS.img \' >> ${MF}
-		# Support Networking
-		echo -e '\t-serial stdio \' >> ${MF}
+		# Discard Ctrl-C to exit and default Ctrl-A + X
+		# echo -e '\t-serial stdio \' >> ${MF}
+		# echo -e '\t-nodefaults \' >> ${MF}
 		echo -e '\t-nographic \' >> ${MF}
-		echo -e '\t-nodefaults \' >> ${MF}
 		echo -e '\t-append "${CMDLINE}"' >> ${MF}
 	;;
 	x86_64)
@@ -518,11 +524,11 @@ case ${ARCH_NAME} in
 		echo -e '\t-m ${RAM_SIZE}M \' >> ${MF}
 		echo -e '\t-kernel ${LINUX_DIR}/x86/boot/bzImage \' >> ${MF}
 		# Support Ramdisk
+		# Discard Ctrl-C to exit and default Ctrl-A + X
+		# echo -e '\t-serial stdio \' >> ${MF}
+		# echo -e '\t-nodefaults \' >> ${MF}
 		echo -e '\t-initrd ${ROOT}/BiscuitOS.img \' >> ${MF}
-		# Support Networking
-		echo -e '\t-serial stdio \' >> ${MF}
 		echo -e '\t-nographic \' >> ${MF}
-		echo -e '\t-nodefaults \' >> ${MF}
 		echo -e '\t-append "${CMDLINE}"' >> ${MF}
 	;;
 esac
@@ -538,12 +544,15 @@ echo '{' >> ${MF}
 if [ ${SUPPORT_RPI} = "N" -a ${SUPPORT_DEBIAN} = "N" ]; then
 	echo -e '\tcp ${BUSYBOX}/_install/*  ${OUTPUT}/rootfs/${ROOTFS_NAME} -raf' >> ${MF}
 	echo -e '\tdd if=/dev/zero of=${OUTPUT}/rootfs/ramdisk bs=1M count=${ROOTFS_SIZE}' >> ${MF}
-	echo -e '\t${FS_TYPE_TOOLS} -F ${OUTPUT}/rootfs/ramdisk' >> ${MF}
+	if [ ${FS_TYPE_TOOLS}X = "mkfs.ext4X" ]; then
+		echo -e '\t${FS_TYPE_TOOLS} -E lazy_itable_init=1,lazy_journal_init=1 -F ${OUTPUT}/rootfs/ramdisk' >> ${MF}
+	else
+		echo -e '\t${FS_TYPE_TOOLS} -F ${OUTPUT}/rootfs/ramdisk' >> ${MF}
+	fi
 	echo -e '\tmkdir -p ${OUTPUT}/rootfs/tmpfs' >> ${MF}
 	echo -e '\tsudo mount -t ${FS_TYPE} ${OUTPUT}/rootfs/ramdisk \' >> ${MF}
 	echo -e '\t              ${OUTPUT}/rootfs/tmpfs/ -o loop' >> ${MF}
 	echo -e '\tsudo cp -raf ${OUTPUT}/rootfs/${ROOTFS_NAME}/*  ${OUTPUT}/rootfs/tmpfs/' >> ${MF}
-	echo -e '\tsync' >> ${MF}
 	echo -e '\tsudo umount ${OUTPUT}/rootfs/tmpfs' >> ${MF}
 	if [ ${SUPPORT_RAMDISK} = "Y" ]; then
 		echo -e '\tgzip --best -c ${OUTPUT}/rootfs/ramdisk > ${OUTPUT}/rootfs/ramdisk.gz' >> ${MF}
@@ -865,7 +874,7 @@ if [ ${SUPPORT_UBOOT} = "Y" ]; then
 	echo "make ARCH=arm clean" >> ${MF}
 	[ ${SUPPORT_RPI3B} = "N" ] && echo "make ARCH=arm vexpress_ca9x4_defconfig" >> ${MF}
 	[ ${SUPPORT_RPI3B} = "Y" ] && echo "make ARCH=arm rpi_2_defconfig" >> ${MF}
-	echo "make ARCH=arm CROSS_COMPILE=${DEF_KERNEL_CROSS}" >> ${MF}
+	echo "make ARCH=arm CROSS_COMPILE=${DEF_UBOOT_CROOS}" >> ${MF}
 	echo '```' >> ${MF}
 	echo '' >> ${MF}
 fi
@@ -940,6 +949,10 @@ case ${ARCH_NAME} in
 			echo "              (${ROOTFS_BLOCKS}) Default RAM disk size" >> ${MF}
 			echo '' >> ${MF}
 		fi
+		echo '' >> ${MF}
+		echo '  [*] Enable loadable module support  --->' >> ${MF}
+		echo '' >> ${MF}
+		echo '' >> ${MF}
 		echo "make ARCH=${ARCH_NAME} CROSS_COMPILE=${DEF_KERNEL_CROSS} Image -j4" >> ${MF}
 		echo "make ARCH=${ARCH_NAME} CROSS_COMPILE=${DEF_KERNEL_CROSS} modules -j4" >> ${MF}
 		echo "make ARCH=${ARCH_NAME} INSTALL_MOD_PATH=${MODULE_INSTALL_PATH} modules_install" >> ${MF}
@@ -1120,6 +1133,8 @@ cat << EOF >> ${1}
 cd ${OUTPUT}
 ./${RUNSCP_NAME}
 \`\`\`
+
+If you want exit from BiscuitOS, pls use: Ctrl-A + X
 
 EOF
 }

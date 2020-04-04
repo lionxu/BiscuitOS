@@ -144,6 +144,9 @@ source package/input/Kconfig
 # inputproto
 source package/inputproto/Kconfig
 
+# IO
+source package/IO/Kconfig
+
 # kbproto
 source package/kbproto/Kconfig
 
@@ -297,6 +300,9 @@ source package/slab/Kconfig
 # spi
 source package/spi/Kconfig
 
+# strace
+source package/strace/Kconfig
+
 # system call arm
 source package/syscall/Kconfig
 
@@ -314,6 +320,9 @@ source package/videoproto/Kconfig
 
 # workqueue
 source package/workqueue/Kconfig
+
+# xarray
+source package/xarray/Kconfig
 
 # xcb-proto
 source package/xcb-proto/Kconfig

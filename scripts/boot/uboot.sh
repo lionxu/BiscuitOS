@@ -22,6 +22,7 @@ UBOOT_SUBNAME=${13%X}
 OUTPUT=${ROOT}/output/${PROJ_NAME}
 ARCH_MAGIC=${14%X}
 ARCH_NAME=
+UBOOT_TOOLS=${12%X}
 
 if [ -d ${OUTPUT}/${UBOOT_NAME}/${UBOOT_NAME} ]; then
         version=`sed -n 1p ${OUTPUT}/${UBOOT_NAME}/version`
@@ -100,6 +101,7 @@ if [ ${UBOOT_SRC} = "3" ]; then
 	if [ ! -f ${ROOT}/dl/${BASE_NAME} ]; then
 		cd ${ROOT}/dl/
 		wget ${UBOOT_SITE}/${BASE_NAME}
+		echo "Downloading finish"
 	fi
 	mkdir -p ${OUTPUT}/${UBOOT_NAME}/
 	cp ${ROOT}/dl/${BASE_NAME} ${OUTPUT}/${UBOOT_NAME}/

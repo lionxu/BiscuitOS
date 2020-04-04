@@ -127,6 +127,7 @@ esac
 # --> Kernel < 3.10 Only support EXT3
 [ ${KERNEL_MAJOR_NO} -eq 3 -a ${KERNEL_MINOR_NO} -lt 10 ] && SUPPORT_EXT3=Y
 [ ${KERNEL_MAJOR_NO} -lt 3 ] && SUPPORT_EXT3=Y
+[ ${KERNEL_MAJOR_NO} -eq 3 -a ${KERNEL_MINOR_NO} -lt 21 -a ${ARCH_NAME} == "arm" ] && SUPPORT_EXT3=Y
 
 # Linux 2.6 Lib support
 [ ${KERNEL_MAJOR_NO} -eq 2 -a ${KERNEL_MINOR_NO} -eq 6 ] && SUPPORT_CROSS_LIB=N
@@ -294,7 +295,14 @@ else
 			# X86/i386
 			[ ${ARCH_NAME}Y = "x86Y" ] && LIBS_PATH_IN=/lib/i386-linux-gnu
 			[ ${ARCH_NAME}Y = "x86_64Y" ] && LIBS_PATH_IN=/lib/x86_64-linux-gnu
-			cp -arf ${LIBS_PATH_IN}/* ${ROOTFS_PATH}/lib/
+			if [ ${ARCH_NAME}Y = "x86_64Y" ]; then
+				mkdir -p ${ROOTFS_PATH}/lib64/
+				cp -rfa /lib64/* ${ROOTFS_PATH}/lib64/
+				cp -arf ${LIBS_PATH_IN}/* ${ROOTFS_PATH}/lib64/
+				cp -arf ${LIBS_PATH_IN}/* ${ROOTFS_PATH}/lib/
+			else
+				cp -arf ${LIBS_PATH_IN}/* ${ROOTFS_PATH}/lib/
+			fi
 		fi
 	fi
 	rm -rf ${ROOTFS_PATH}/lib/*.a

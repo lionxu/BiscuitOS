@@ -19,7 +19,7 @@ config PK_MOD_PROJ_GITHUB
 	string "GitHub"
 
 config PK_MOD_PROJ_SRCFILE
-	default "core.c Kconfig Makefile include/linux/demo.h src/demo.c"
+	default "main.c Kconfig Makefile include/linux/demo.h src/demo.c"
 	string "Source code list"
 
 config PK_MOD_PROJ_CSRCFILE
